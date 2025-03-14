@@ -5,14 +5,17 @@ import binaryninja
 import argparse
 
 
-def get_calls_to(binary_view, function_name: str):
+def get_calls_to(binary_view: binaryninja.binaryview.BinaryView, function_name: str):
     symbol = binary_view.get_symbol_by_raw_name(function_name)
     if not symbol:
         return iter(())
     return binary_view.get_code_refs(symbol.address)
 
 
-def get_variables_passed_to(function, reference):
+def get_variables_passed_to(
+    function: binaryninja.function.Function,
+    reference: binaryninja.binaryview.ReferenceSource,
+):
     function_mlil = function.mlil
     call_instruction = function_mlil[
         function_mlil.get_instruction_start(reference.address)
@@ -20,7 +23,10 @@ def get_variables_passed_to(function, reference):
     return call_instruction.params
 
 
-def perform_backward_slice(variable, function):
+def perform_backward_slice(
+    variable: binaryninja.mediumlevelil.SSAVariable,
+    function: binaryninja.function.Function,
+):
     variable_definition = function.mlil.get_ssa_var_definition(variable.ssa_form)
     for operand in variable_definition.detailed_operands:
         string, variable_read, variable_type = operand
