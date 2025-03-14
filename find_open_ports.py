@@ -20,6 +20,16 @@ def get_variables_passed_to(function, reference):
     return call_instruction.params
 
 
+def perform_backward_slice(variable, function):
+    variable_definition = function.mlil.get_ssa_var_definition(variable.ssa_form)
+    for operand in variable_definition.detailed_operands:
+        string, variable_read, variable_type = operand
+        # if string == 'src':
+        # could be the address of another variable or function call
+    return variable_read
+    perform_backward_slice(variable_list[0], function)
+
+
 parser = argparse.ArgumentParser(
     prog="Find Open Ports", description="Search a binary for open ports"
 )
@@ -37,4 +47,11 @@ with binaryninja.load(args.filename) as binary_view:
             socket_fd, sockaddr, sockaddr_size = get_variables_passed_to(
                 caller, reference
             )
-            print(sockaddr)
+            original_sockaddr = perform_backward_slice(sockaddr, caller)
+            # retype variable to sockaddr_in if sockaddr_size is 0x10
+            # get references to sockaddr_in.sin_port within the function
+            # do another backward slice to determine the value of sin_port
+            # repeat above with sin_addr
+            # find assignment to socket_fd
+            # get arguments to socket(3) call
+            # print results
