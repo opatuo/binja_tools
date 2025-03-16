@@ -12,15 +12,29 @@ def get_calls_to(binary_view: binaryninja.binaryview.BinaryView, function_name: 
     return binary_view.get_code_refs(symbol.address)
 
 
-def get_variables_passed_to(
+def get_variables_at(
     function: binaryninja.function.Function,
     reference: binaryninja.binaryview.ReferenceSource,
 ):
     function_mlil = function.mlil
-    call_instruction = function_mlil[
+    instruction = function_mlil[
         function_mlil.get_instruction_start(reference.address)
     ].ssa_form
-    return call_instruction.params
+    return instruction.params
+
+
+# Return the variable that initializes the type in function
+def get_initialization_of_type(
+    binary_view: binaryninja.binaryview.BinaryView,
+    function: binaryninja.function.Function,
+    name: str,
+) -> binaryninja.mediumlevelil.SSAVariable:
+    type_reference = binary_view.types[name]
+    for reference in binary_view.get_code_refs_for_type(name):
+        for variable in reference.mlil.ssa_form.vars_read:
+            if variable.type == type_reference and variable.function == function:
+                return variable
+    raise binaryninja.exceptions.ILException
 
 
 def perform_backward_slice(
@@ -30,10 +44,14 @@ def perform_backward_slice(
     variable_definition = function.mlil.get_ssa_var_definition(variable.ssa_form)
     for operand in variable_definition.detailed_operands:
         string, variable_read, variable_type = operand
-        # if string == 'src':
-        # could be the address of another variable or function call
-    return variable_read
-    perform_backward_slice(variable_list[0], function)
+        if string == "src":
+            # could be the address of another variable or function call
+            if (
+                variable_read.ssa_form.operation
+                == binaryninja.enums.MediumLevelILOperation.MLIL_ADDRESS_OF
+            ):
+                return variable_read.src
+            # if variable_read.is_parameter_variable:
 
 
 parser = argparse.ArgumentParser(
@@ -50,12 +68,12 @@ with binaryninja.load(args.filename) as binary_view:
     for reference in get_calls_to(binary_view, "bind"):
         callers = binary_view.get_functions_containing(reference.address)
         for caller in callers:
-            socket_fd, sockaddr, sockaddr_size = get_variables_passed_to(
-                caller, reference
-            )
+            socket_fd, sockaddr, sockaddr_size = get_variables_at(caller, reference)
             original_sockaddr = perform_backward_slice(sockaddr, caller)
-            # retype variable to sockaddr_in if sockaddr_size is 0x10
-            # get references to sockaddr_in.sin_port within the function
+            # TODO: retype variable to sockaddr_in if sockaddr_size is 0x10
+            original_sockaddr.type, _ = binary_view.parse_type_string("sockaddr_in")
+            in_port_t = get_initialization_of_type(binary_view, caller, "in_port_t")
+            print(in_port_t)
             # do another backward slice to determine the value of sin_port
             # repeat above with sin_addr
             # find assignment to socket_fd
