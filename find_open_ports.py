@@ -97,13 +97,13 @@ with binaryninja.load(args.filename) as binary_view:
             sockaddr_len = int(str(sockaddr_size), 16)
             if sockaddr_len == 16:
                 original_sockaddr.type, _ = binary_view.parse_type_string("sockaddr_in")
+                in_port_t = get_initialization_of_type(binary_view, caller, "in_port_t")
+                original_port_t = perform_backward_slice(in_port_t, caller)
+                port_value = get_value_assigned_to(original_port_t, caller)
+                print(f"\tPORT == {int(port_value, 16)}")
             else:
                 raise Exception(f"Unknown sockaddr length: {sockaddr_len}")
 
-            in_port_t = get_initialization_of_type(binary_view, caller, "in_port_t")
-            original_port_t = perform_backward_slice(in_port_t, caller)
-            port_value = get_value_assigned_to(original_port_t, caller)
-            print(f"\tPORT == {int(port_value, 16)}")
             # repeat above with sin_addr
             # find assignment to socket_fd
             # get arguments to socket(3) call
