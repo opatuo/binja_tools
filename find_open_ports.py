@@ -60,7 +60,7 @@ def get_initialization_of_type_at(
 def perform_backward_slice(
     variable: binaryninja.mediumlevelil.SSAVariable,
     function: binaryninja.function.Function,
-):
+) -> binaryninja.variable.Variable:
     variable_definition = function.mlil.get_ssa_var_definition(variable)
 
     for variable in variable_definition.ssa_form.vars_read:
@@ -94,24 +94,29 @@ def find_constant(instruction: binaryninja.mediumlevelil.MediumLevelILInstructio
         return str(instruction)
 
 
-def get_value_assigned_to(
+def get_function_parameter_at_initialization_of(
     variable: binaryninja.variable.Variable,
     function: binaryninja.function.Function,
-    # TODO: add index and change function name
+    index: int,
 ) -> str:
     variable_definitions = function.mlil.get_var_definitions(variable)
+    counter = 0
     for definition in variable_definitions:
         for operand in definition.detailed_operands:
             string, variables, variable_type = operand
-            if isinstance(variables, Iterable):
-                for variable in variables:
-                    if isinstance(
-                        variable, binaryninja.mediumlevelil.MediumLevelILConst
-                    ):
-                        return int(variable.value.value)
-            else:
-                if isinstance(variable, binaryninja.mediumlevelil.MediumLevelILConst):
-                    return int(variable.value.value)
+            if string == "params":
+                if index >= len(variables):
+                    raise Exception(
+                        f"Function only has {len(variables)} parameters where index is {index}"
+                    )
+                variable = variables[index]
+                if not isinstance(
+                    variable, binaryninja.mediumlevelil.MediumLevelILConst
+                ):
+                    raise Exception(
+                        f"Function parameter at index {index} is not a constant."
+                    )
+                return int(variable.value.value)
 
 
 def socket_type_to_string(sock_type: int):
@@ -148,8 +153,8 @@ if __name__ == "__main__":
                 if sockaddr_len == 16:
                     # Find socket call
                     original_socket_fd = perform_backward_slice(socket_fd, caller)
-                    socket_type_value = get_value_assigned_to(
-                        original_socket_fd, caller
+                    socket_type_value = get_function_parameter_at_initialization_of(
+                        original_socket_fd, caller, 1
                     )
                     socket_type = socket_type_to_string(socket_type_value)
 
@@ -161,14 +166,18 @@ if __name__ == "__main__":
                         binary_view, caller, ["in_port_t"]
                     )
                     original_port_t = perform_backward_slice(in_port_t, caller)
-                    port_value = get_value_assigned_to(original_port_t, caller)
+                    port_value = get_function_parameter_at_initialization_of(
+                        original_port_t, caller, 0
+                    )
                     print(f"\t{socket_type} PORT == {port_value}")
 
                     sin_addr = get_initialization_of_type_at(
                         binary_view, caller, "sockaddr_in", 4
                     )
                     original_sin_addr = perform_backward_slice(sin_addr, caller)
-                    address_value = get_value_assigned_to(original_sin_addr, caller)
+                    address_value = get_function_parameter_at_initialization_of(
+                        original_sin_addr, caller, 0
+                    )
                     print(f"\tADDRESS  == {str(ipaddress.IPv4Address(address_value))}")
                 else:
                     raise Exception(f"Unknown sockaddr length: {sockaddr_len}")
