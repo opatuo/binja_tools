@@ -4,6 +4,10 @@
 import binaryninja
 import argparse
 import ipaddress
+import sys
+from collections.abc import Iterable
+import socket
+from pathlib import Path
 
 
 def get_calls_to(binary_view: binaryninja.binaryview.BinaryView, function_name: str):
@@ -61,8 +65,10 @@ def perform_backward_slice(
 
     for variable in variable_definition.ssa_form.vars_read:
         if isinstance(variable, binaryninja.mediumlevelil.SSAVariable):
-            perform_backward_slice(variable, function)
-    print(variable_definition)
+            next_variable = perform_backward_slice(variable, function)
+            if not isinstance(next_variable, binaryninja.mediumlevelil.SSAVariable):
+                return next_variable
+
     for operand in variable_definition.detailed_operands:
         string, variable_read, variable_type = operand
         if string == "src":
@@ -76,6 +82,12 @@ def perform_backward_slice(
             # if variable_read.is_parameter_variable:
             return variable
 
+    # No more src variables, parse expression for output
+    for operand in variable_definition.detailed_operands:
+        string, variable_read, variable_type = operand
+        if string == "output":
+            return variable_read[0]  # TODO: could be multiple outputs
+
 
 def find_constant(instruction: binaryninja.mediumlevelil.MediumLevelILInstruction):
     if isinstance(instruction, binaryninja.mediumlevelil.MediumLevelILConst):
@@ -83,12 +95,32 @@ def find_constant(instruction: binaryninja.mediumlevelil.MediumLevelILInstructio
 
 
 def get_value_assigned_to(
-    variable: binaryninja.mediumlevelil.SSAVariable,
+    variable: binaryninja.variable.Variable,
     function: binaryninja.function.Function,
+    # TODO: add index and change function name
 ) -> str:
-    variable_definition = function.mlil.get_ssa_var_definition(variable)
-    for result in variable_definition.traverse(find_constant):
-        return str(result)
+    variable_definitions = function.mlil.get_var_definitions(variable)
+    for definition in variable_definitions:
+        for operand in definition.detailed_operands:
+            string, variables, variable_type = operand
+            if isinstance(variables, Iterable):
+                for variable in variables:
+                    if isinstance(
+                        variable, binaryninja.mediumlevelil.MediumLevelILConst
+                    ):
+                        return int(variable.value.value)
+            else:
+                if isinstance(variable, binaryninja.mediumlevelil.MediumLevelILConst):
+                    return int(variable.value.value)
+
+
+def socket_type_to_string(sock_type: int):
+    if sock_type == socket.SOCK_STREAM:
+        return "TCP"
+    if sock_type == socket.SOCK_DGRAM:
+        return "UDP"
+    if sock_type == socket.SOCK_RAW:
+        return "RAW"
 
 
 if __name__ == "__main__":
@@ -103,6 +135,7 @@ if __name__ == "__main__":
         binaryninja.disable_default_log()
 
     with binaryninja.load(args.filename) as binary_view:
+        print(f"{Path(args.filename).stem}:")
         for reference in get_calls_to(binary_view, "bind"):
             callers = binary_view.get_functions_containing(reference.address)
             for caller in callers:
@@ -115,7 +148,11 @@ if __name__ == "__main__":
                 if sockaddr_len == 16:
                     # Find socket call
                     original_socket_fd = perform_backward_slice(socket_fd, caller)
-                    print(original_socket_fd)
+                    socket_type_value = get_value_assigned_to(
+                        original_socket_fd, caller
+                    )
+                    socket_type = socket_type_to_string(socket_type_value)
+
                     original_sockaddr.type, _ = binary_view.parse_type_string(
                         "sockaddr_in"
                     )
@@ -125,16 +162,13 @@ if __name__ == "__main__":
                     )
                     original_port_t = perform_backward_slice(in_port_t, caller)
                     port_value = get_value_assigned_to(original_port_t, caller)
-                    print(f"\tPORT    == {int(port_value, 16)}")
+                    print(f"\t{socket_type} PORT == {port_value}")
 
                     sin_addr = get_initialization_of_type_at(
                         binary_view, caller, "sockaddr_in", 4
                     )
                     original_sin_addr = perform_backward_slice(sin_addr, caller)
-                    if original_sin_addr is None:  # TODO
-                        original_sin_addr = sin_addr
                     address_value = get_value_assigned_to(original_sin_addr, caller)
-                    address_value = int(address_value, 16)
-                    print(f"\tADDRESS == {str(ipaddress.IPv4Address(address_value))}")
+                    print(f"\tADDRESS  == {str(ipaddress.IPv4Address(address_value))}")
                 else:
                     raise Exception(f"Unknown sockaddr length: {sockaddr_len}")
