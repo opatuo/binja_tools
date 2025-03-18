@@ -59,11 +59,10 @@ def perform_backward_slice(
 ):
     variable_definition = function.mlil.get_ssa_var_definition(variable)
 
-    # function.mlil.get_ssa_var_uses
     for variable in variable_definition.ssa_form.vars_read:
         if isinstance(variable, binaryninja.mediumlevelil.SSAVariable):
             perform_backward_slice(variable, function)
-
+    print(variable_definition)
     for operand in variable_definition.detailed_operands:
         string, variable_read, variable_type = operand
         if string == "src":
@@ -114,16 +113,19 @@ if __name__ == "__main__":
 
                 sockaddr_len = int(str(sockaddr_size), 16)
                 if sockaddr_len == 16:
+                    # Find socket call
+                    original_socket_fd = perform_backward_slice(socket_fd, caller)
+                    print(original_socket_fd)
                     original_sockaddr.type, _ = binary_view.parse_type_string(
                         "sockaddr_in"
                     )
-                    # set in_addr offset to type
+
                     in_port_t = get_initialization_of_type(
                         binary_view, caller, ["in_port_t"]
                     )
                     original_port_t = perform_backward_slice(in_port_t, caller)
                     port_value = get_value_assigned_to(original_port_t, caller)
-                    print(f"\tPORT == {int(port_value, 16)}")
+                    print(f"\tPORT    == {int(port_value, 16)}")
 
                     sin_addr = get_initialization_of_type_at(
                         binary_view, caller, "sockaddr_in", 4
@@ -136,8 +138,3 @@ if __name__ == "__main__":
                     print(f"\tADDRESS == {str(ipaddress.IPv4Address(address_value))}")
                 else:
                     raise Exception(f"Unknown sockaddr length: {sockaddr_len}")
-
-                # repeat above with sin_addr
-                # find assignment to socket_fd
-                # get arguments to socket(3) call
-                # print results
