@@ -3,6 +3,7 @@
 # Author: opatuo
 import binaryninja
 import argparse
+import ipaddress
 
 
 def get_calls_to(binary_view: binaryninja.binaryview.BinaryView, function_name: str):
@@ -27,14 +28,29 @@ def get_variables_at(
 def get_initialization_of_type(
     binary_view: binaryninja.binaryview.BinaryView,
     function: binaryninja.function.Function,
-    name: str,
+    names: list[str],
 ) -> binaryninja.mediumlevelil.SSAVariable:
-    type_reference = binary_view.types[name]
-    for reference in binary_view.get_code_refs_for_type(name):
-        for variable in reference.mlil.ssa_form.vars_read:
-            if variable.type == type_reference and variable.function == function:
-                return variable
+    for name in names:
+        type_reference = binary_view.types[name]
+        for reference in binary_view.get_code_refs_for_type(name):
+            for variable in reference.mlil.ssa_form.vars_read:
+                if variable.type == type_reference and variable.function == function:
+                    return variable
     raise binaryninja.exceptions.ILException
+
+
+def get_initialization_of_type_at(
+    binary_view: binaryninja.binaryview.BinaryView,
+    function: binaryninja.function.Function,
+    name: str,
+    offset: int,
+):
+    for reference in binary_view.get_code_refs_for_type_field(name, offset):
+        instruction = function.mlil[
+            function.mlil.get_instruction_start(reference.address)
+        ].ssa_form
+        return instruction.src
+    raise Exception(f"Unable to find a reference to {name} at {offset}")
 
 
 def perform_backward_slice(
@@ -43,6 +59,7 @@ def perform_backward_slice(
 ):
     variable_definition = function.mlil.get_ssa_var_definition(variable)
 
+    # function.mlil.get_ssa_var_uses
     for variable in variable_definition.ssa_form.vars_read:
         if isinstance(variable, binaryninja.mediumlevelil.SSAVariable):
             perform_backward_slice(variable, function)
@@ -75,36 +92,52 @@ def get_value_assigned_to(
         return str(result)
 
 
-parser = argparse.ArgumentParser(
-    prog="Find Open Ports", description="Search a binary for open ports"
-)
-parser.add_argument("filename")
-parser.add_argument("--verbose", action="store_true")
-args = parser.parse_args()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="Find Open Ports", description="Search a binary for open ports"
+    )
+    parser.add_argument("filename")
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()
 
-if not args.verbose:
-    binaryninja.disable_default_log()
+    if not args.verbose:
+        binaryninja.disable_default_log()
 
-with binaryninja.load(args.filename) as binary_view:
-    for reference in get_calls_to(binary_view, "bind"):
-        callers = binary_view.get_functions_containing(reference.address)
-        for caller in callers:
-            socket_fd, sockaddr, sockaddr_size = get_variables_at(caller, reference)
+    with binaryninja.load(args.filename) as binary_view:
+        for reference in get_calls_to(binary_view, "bind"):
+            callers = binary_view.get_functions_containing(reference.address)
+            for caller in callers:
+                socket_fd, sockaddr, sockaddr_size = get_variables_at(caller, reference)
 
-            # TODO: original_sockaddr should be a SSAVariable
-            original_sockaddr = perform_backward_slice(sockaddr.ssa_form, caller)
+                # TODO: original_sockaddr should be a SSAVariable
+                original_sockaddr = perform_backward_slice(sockaddr.ssa_form, caller)
 
-            sockaddr_len = int(str(sockaddr_size), 16)
-            if sockaddr_len == 16:
-                original_sockaddr.type, _ = binary_view.parse_type_string("sockaddr_in")
-                in_port_t = get_initialization_of_type(binary_view, caller, "in_port_t")
-                original_port_t = perform_backward_slice(in_port_t, caller)
-                port_value = get_value_assigned_to(original_port_t, caller)
-                print(f"\tPORT == {int(port_value, 16)}")
-            else:
-                raise Exception(f"Unknown sockaddr length: {sockaddr_len}")
+                sockaddr_len = int(str(sockaddr_size), 16)
+                if sockaddr_len == 16:
+                    original_sockaddr.type, _ = binary_view.parse_type_string(
+                        "sockaddr_in"
+                    )
+                    # set in_addr offset to type
+                    in_port_t = get_initialization_of_type(
+                        binary_view, caller, ["in_port_t"]
+                    )
+                    original_port_t = perform_backward_slice(in_port_t, caller)
+                    port_value = get_value_assigned_to(original_port_t, caller)
+                    print(f"\tPORT == {int(port_value, 16)}")
 
-            # repeat above with sin_addr
-            # find assignment to socket_fd
-            # get arguments to socket(3) call
-            # print results
+                    sin_addr = get_initialization_of_type_at(
+                        binary_view, caller, "sockaddr_in", 4
+                    )
+                    original_sin_addr = perform_backward_slice(sin_addr, caller)
+                    if original_sin_addr is None:  # TODO
+                        original_sin_addr = sin_addr
+                    address_value = get_value_assigned_to(original_sin_addr, caller)
+                    address_value = int(address_value, 16)
+                    print(f"\tADDRESS == {str(ipaddress.IPv4Address(address_value))}")
+                else:
+                    raise Exception(f"Unknown sockaddr length: {sockaddr_len}")
+
+                # repeat above with sin_addr
+                # find assignment to socket_fd
+                # get arguments to socket(3) call
+                # print results
