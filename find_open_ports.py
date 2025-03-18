@@ -4,8 +4,6 @@
 import binaryninja
 import argparse
 import ipaddress
-import sys
-from collections.abc import Iterable
 import socket
 from pathlib import Path
 
@@ -40,7 +38,7 @@ def get_initialization_of_type(
             for variable in reference.mlil.ssa_form.vars_read:
                 if variable.type == type_reference and variable.function == function:
                     return variable
-    raise binaryninja.exceptions.ILException
+    raise Exception(f"Unable to find the initialization of {name} in the binary")
 
 
 def get_initialization_of_type_at(
@@ -89,11 +87,6 @@ def perform_backward_slice(
             return variable_read[0]  # TODO: could be multiple outputs
 
 
-def find_constant(instruction: binaryninja.mediumlevelil.MediumLevelILInstruction):
-    if isinstance(instruction, binaryninja.mediumlevelil.MediumLevelILConst):
-        return str(instruction)
-
-
 def get_function_parameter_at_initialization_of(
     variable: binaryninja.variable.Variable,
     function: binaryninja.function.Function,
@@ -128,6 +121,15 @@ def socket_type_to_string(sock_type: int):
         return "RAW"
 
 
+def get_function_parameter_initialization_of(
+    variable: binaryninja.mediumlevelil.SSAVariable,
+    function: binaryninja.function.Function,
+    index: int,
+) -> int:
+    original = perform_backward_slice(variable, function)
+    return get_function_parameter_at_initialization_of(original, function, index)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Find Open Ports", description="Search a binary for open ports"
@@ -146,15 +148,12 @@ if __name__ == "__main__":
             for caller in callers:
                 socket_fd, sockaddr, sockaddr_size = get_variables_at(caller, reference)
 
-                # TODO: original_sockaddr should be a SSAVariable
                 original_sockaddr = perform_backward_slice(sockaddr.ssa_form, caller)
 
                 sockaddr_len = int(str(sockaddr_size), 16)
                 if sockaddr_len == 16:
-                    # Find socket call
-                    original_socket_fd = perform_backward_slice(socket_fd, caller)
-                    socket_type_value = get_function_parameter_at_initialization_of(
-                        original_socket_fd, caller, 1
+                    socket_type_value = get_function_parameter_initialization_of(
+                        socket_fd, caller, 1
                     )
                     socket_type = socket_type_to_string(socket_type_value)
 
@@ -165,18 +164,16 @@ if __name__ == "__main__":
                     in_port_t = get_initialization_of_type(
                         binary_view, caller, ["in_port_t"]
                     )
-                    original_port_t = perform_backward_slice(in_port_t, caller)
-                    port_value = get_function_parameter_at_initialization_of(
-                        original_port_t, caller, 0
+                    port_value = get_function_parameter_initialization_of(
+                        in_port_t, caller, 0
                     )
                     print(f"\t{socket_type} PORT == {port_value}")
 
                     sin_addr = get_initialization_of_type_at(
                         binary_view, caller, "sockaddr_in", 4
                     )
-                    original_sin_addr = perform_backward_slice(sin_addr, caller)
-                    address_value = get_function_parameter_at_initialization_of(
-                        original_sin_addr, caller, 0
+                    address_value = get_function_parameter_initialization_of(
+                        sin_addr, caller, 0
                     )
                     print(f"\tADDRESS  == {str(ipaddress.IPv4Address(address_value))}")
                 else:
