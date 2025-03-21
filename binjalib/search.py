@@ -79,5 +79,5 @@ def function_parameter_initialization_of(
     function: binaryninja.function.Function,
     index: int,
 ) -> int:
-    original = varslice.backward(variable, function)
+    function, original = varslice.backward(function, variable)
     return function_parameter_at_initialization_of(original, function, index)

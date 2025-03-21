@@ -30,16 +30,16 @@ if __name__ == "__main__":
     if not args.verbose:
         binaryninja.disable_default_log()
 
-    with binaryninja.load(args.filename) as binary_view:
+    with binaryninja.load(args.filename) as bv:
         print(f"{Path(args.filename).stem}:")
-        for reference in search.calls_to(binary_view, "bind"):
-            callers = binary_view.get_functions_containing(reference.address)
+        for reference in search.calls_to(bv, "bind"):
+            callers = bv.get_functions_containing(reference.address)
             for caller in callers:
                 socket_fd, sockaddr, sockaddr_size = search.variables_at(
                     caller, reference
                 )
 
-                original_sockaddr = varslice.backward(sockaddr.ssa_form, caller)
+                caller, original_sockaddr = varslice.backward(caller, sockaddr.ssa_form)
 
                 sockaddr_len = int(str(sockaddr_size), 16)
                 if sockaddr_len == 16:
@@ -48,20 +48,16 @@ if __name__ == "__main__":
                     )
                     socket_type = socket_type_to_string(socket_type_value)
 
-                    original_sockaddr.type, _ = binary_view.parse_type_string(
-                        "sockaddr_in"
-                    )
+                    original_sockaddr.type, _ = bv.parse_type_string("sockaddr_in")
 
-                    in_port_t = search.initialization_of_type(
-                        binary_view, caller, ["in_port_t"]
-                    )
+                    in_port_t = search.initialization_of_type(bv, caller, ["in_port_t"])
                     port_value = search.function_parameter_initialization_of(
                         in_port_t, caller, 0
                     )
                     print(f"\t{socket_type} PORT == {port_value}")
 
                     sin_addr = search.initialization_of_type_at(
-                        binary_view, caller, "sockaddr_in", 4
+                        bv, caller, "sockaddr_in", 4
                     )
                     address_value = search.function_parameter_initialization_of(
                         sin_addr, caller, 0
