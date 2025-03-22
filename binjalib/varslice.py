@@ -3,23 +3,35 @@
 import binaryninja
 
 
+def is_function_parameter(variable: binaryninja.mediumlevelil.SSAVariable):
+    assert isinstance(variable, binaryninja.mediumlevelil.SSAVariable)
+    return variable.var.is_parameter_variable
+
+
+def find_last_ssa_variable_backward(variable: binaryninja.mediumlevelil.SSAVariable):
+    assert isinstance(variable, binaryninja.mediumlevelil.SSAVariable)
+
+    while variable.def_site is not None:
+        if len(variable.def_site.vars_read) == 0:
+            break
+        new_variable = variable.def_site.vars_read[0]
+        if not isinstance(new_variable, binaryninja.mediumlevelil.SSAVariable):
+            break
+        variable = new_variable
+    return variable
+
+
 def backward(
     function: binaryninja.function.Function,
     variable: binaryninja.mediumlevelil.SSAVariable,
 ) -> tuple[binaryninja.function.Function, binaryninja.variable.Variable]:
-    variable_definition = function.mlil.get_ssa_var_definition(variable)
 
-    if variable_definition is None:
-        print(variable)
+    variable = find_last_ssa_variable_backward(variable)
+
+    if is_function_parameter(variable):
         return function, variable
 
-    for variable in variable_definition.ssa_form.vars_read:
-        if isinstance(variable, binaryninja.mediumlevelil.SSAVariable):
-            function, next_variable = backward(function, variable)
-            if not isinstance(next_variable, binaryninja.mediumlevelil.SSAVariable):
-                return function, next_variable
-
-    for operand in variable_definition.detailed_operands:
+    for operand in variable.def_site.detailed_operands:
         string, variable_read, variable_type = operand
         if string == "src":
             # could be the address of another variable or function call
@@ -31,7 +43,8 @@ def backward(
             return function, variable
 
     # No more src variables, parse expression for output
-    for operand in variable_definition.detailed_operands:
+    for operand in variable.def_site.detailed_operands:
         string, variable_read, variable_type = operand
         if string == "output":
-            return function, variable_read[0]  # TODO: could be multiple outputs
+            # TODO: variable_read[0] might be a SSAVariable
+            return function, variable_read[0].var  # TODO: could be multiple outputs

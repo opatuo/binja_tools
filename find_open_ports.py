@@ -39,12 +39,12 @@ if __name__ == "__main__":
                     caller, reference
                 )
 
-                caller, original_sockaddr = varslice.backward(caller, sockaddr.ssa_form)
+                caller, original_sockaddr = varslice.backward(caller, sockaddr.src)
 
                 sockaddr_len = int(str(sockaddr_size), 16)
                 if sockaddr_len == 16:
                     socket_type_value = search.function_parameter_initialization_of(
-                        socket_fd, caller, 1
+                        socket_fd.src, caller, 1
                     )
                     socket_type = socket_type_to_string(socket_type_value)
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
                         bv, caller, "sockaddr_in", 4
                     )
                     address_value = search.function_parameter_initialization_of(
-                        sin_addr, caller, 0
+                        sin_addr.src, caller, 0
                     )
                     print(f"\tADDRESS  == {str(ipaddress.IPv4Address(address_value))}")
                 else:
