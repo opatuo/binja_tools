@@ -35,9 +35,7 @@ if __name__ == "__main__":
         for reference in search.calls_to(bv, "bind"):
             callers = bv.get_functions_containing(reference.address)
             for caller in callers:
-                socket_fd, sockaddr, sockaddr_size = search.variables_at(
-                    caller, reference
-                )
+                socket_fd, sockaddr, sockaddr_size = search.variables_at(reference)
 
                 caller, original_sockaddr = varslice.backward(caller, sockaddr.src)
 

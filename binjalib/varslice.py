@@ -21,6 +21,15 @@ def find_last_ssa_variable_backward(variable: binaryninja.mediumlevelil.SSAVaria
     return variable
 
 
+def find_previous_function(variable: binaryninja.mediumlevelil.SSAVariable):
+    assert isinstance(variable, binaryninja.mediumlevelil.SSAVariable)
+    for reference in variable.function.caller_sites:
+        # match variable index to the variables list to find the correct parameter
+        variables = search.variables_at(reference)
+        # convert the parameter to ssa_form and return it
+        return variables[0].ssa_form
+
+
 def backward(
     function: binaryninja.function.Function,
     variable: binaryninja.mediumlevelil.SSAVariable,

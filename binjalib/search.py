@@ -9,11 +9,8 @@ def calls_to(binary_view: binaryninja.binaryview.BinaryView, function_name: str)
     return binary_view.get_code_refs(symbol.address)
 
 
-def variables_at(
-    function: binaryninja.function.Function,
-    reference: binaryninja.binaryview.ReferenceSource,
-):
-    function_mlil = function.mlil
+def variables_at(reference: binaryninja.binaryview.ReferenceSource):
+    function_mlil = reference.function.mlil
     instruction = function_mlil[
         function_mlil.get_instruction_start(reference.address)
     ].ssa_form
