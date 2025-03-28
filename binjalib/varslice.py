@@ -1,11 +1,16 @@
 # License: CC0 1.0 Universal
 # Author: opatuo
 import binaryninja
+from binjalib import search
 
 
-def is_function_parameter(variable: binaryninja.mediumlevelil.SSAVariable):
+def get_function_parameter_index(variable: binaryninja.mediumlevelil.SSAVariable):
     assert isinstance(variable, binaryninja.mediumlevelil.SSAVariable)
-    return variable.var.is_parameter_variable
+    if variable.var.is_parameter_variable:
+        for index, parameter in enumerate(variable.function.parameter_vars):
+            if parameter == variable.var:
+                return index
+    return None
 
 
 def find_last_ssa_variable_backward(variable: binaryninja.mediumlevelil.SSAVariable):
@@ -21,13 +26,14 @@ def find_last_ssa_variable_backward(variable: binaryninja.mediumlevelil.SSAVaria
     return variable
 
 
-def find_previous_function(variable: binaryninja.mediumlevelil.SSAVariable):
+def find_variable_in_previous_function(
+    variable: binaryninja.mediumlevelil.SSAVariable, parameter_index: int
+) -> binaryninja.mediumlevelil.SSAVariable:
     assert isinstance(variable, binaryninja.mediumlevelil.SSAVariable)
     for reference in variable.function.caller_sites:
-        # match variable index to the variables list to find the correct parameter
         variables = search.variables_at(reference)
-        # convert the parameter to ssa_form and return it
-        return variables[0].ssa_form
+        assert len(variables) >= parameter_index
+        return variables[parameter_index].ssa_form.src
 
 
 def backward(
@@ -37,8 +43,10 @@ def backward(
 
     variable = find_last_ssa_variable_backward(variable)
 
-    if is_function_parameter(variable):
-        return function, variable
+    parameter_index = get_function_parameter_index(variable)
+    if parameter_index is not None:
+        variable = find_variable_in_previous_function(variable, parameter_index)
+        function, variable = backward(variable.function, variable)
 
     for operand in variable.def_site.detailed_operands:
         string, variable_read, variable_type = operand
