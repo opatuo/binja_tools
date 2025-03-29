@@ -48,6 +48,9 @@ def backward(
         variable = find_variable_in_previous_function(variable, parameter_index)
         function, variable = backward(variable.function, variable)
 
+    if variable.def_site is None:  # TODO: check use_sites because it may be a pointer
+        return function, variable
+
     for operand in variable.def_site.detailed_operands:
         string, variable_read, variable_type = operand
         if string == "src":
