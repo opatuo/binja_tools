@@ -2,17 +2,16 @@ from binaryninja.architecture import Architecture
 from binaryninja.function import RegisterInfo
 from binaryninja import Endianness
 
-from .instruction import MIPS16e2Disassembler
+from .disassembler import MIPS16Disassembler
 
-class MIPS16e2Architecture(Architecture):
-	name = 'mips16e2'
-    # These values are taken from binaryninja-api/arch/mips/arch_mips.cpp
+class MIPS16Architecture(Architecture):
+    name = 'mips16'
     max_instr_length = 4
-    address_size = 4		# 32-bit addresses, the process will read 2 16-bit address at once in 16 bit mode
+    address_size = 4
     default_int_size = 4
     instr_alignment = 4
 
-    disassembler = MIPS16e2Disassembler()
+    disassembler = MIPS16Disassembler()
 
     endianness = Endianness.BigEndian
 
@@ -56,9 +55,7 @@ class MIPS16e2Architecture(Architecture):
     stack_pointer = "sp"
 
     def get_instruction_info(self, data, address):
-        return disassembler.decode(data, address)
+        return self.disassembler.decode(data, address)
 
     def get_instruction_text(self, data, address):
-        return disassembler.text(data, address)
-
-MIPS16e2Architecture.register()
+        return self.disassembler.text(data, address)

@@ -2,11 +2,10 @@ from capstone import *
 from capstone.mips import *
 from binaryninja import InstructionInfo
 
-class MIPS16e2Disassembler:
+class MIPS16Disassembler:
     def __init__(self):
-        self.disassembler = Cs(CS_ARCH_MIPS,  CS_MODE_MIPS32R6 + CS_MODE_BIG_ENDIAN)
+        self.disassembler = Cs(CS_ARCH_MIPS,  CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN)
         self.disassembler.detail = True
-        self.disassembler.syntax = CS_OPT_SYNTAX_INTEL
 
         self.micro_mode = False
         self.address_length = 4
@@ -26,12 +25,12 @@ class MIPS16e2Disassembler:
         return self.address_length
 
     def _toggle_micro_mode_on(self):
-        self.disassembler.mode = CS_MODE_MICRO + CS_MODE_MIPS32R6 + CS_MODE_BIG_ENDIAN
+        self.disassembler.mode = CS_MODE_MICRO + CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN
         self.micro_mode = True
         self.address_length = 2
 
     def _toggle_micro_mode_off(self):
-        self.disassembler.mode = CS_MODE_MIPS32R6 + CS_MODE_BIG_ENDIAN
+        self.disassembler.mode = CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN
         self.micro_mode = False
         self.address_length = 4
 
