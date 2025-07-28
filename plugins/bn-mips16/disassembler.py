@@ -2,6 +2,22 @@ from capstone import *
 from capstone.mips import *
 from binaryninja import InstructionInfo, InstructionTextToken, InstructionTextTokenType
 
+unconditional_branch_instructions = {"b", "j"}
+function_return_instructions = {"jr"}
+branch_instructions = {
+    "beq",
+    "beqz",
+    "bgez",
+    "bjezal",
+    "bgtz",
+    "blez",
+    "bltz",
+    "bltzal",
+    "bne",
+    "bnez",
+}
+call_destination_instructions = {"bal", "jal", "jalr"}
+
 
 class MIPS16Disassembler:
     def __init__(self):
@@ -15,7 +31,7 @@ class MIPS16Disassembler:
         raw_instruction = self._get_raw_instruction(data, address)
         if raw_instruction is None:
             return None
-        return self._decode_impl(instruction)
+        return self._decode_impl(instruction, address)
 
     def text(self, data, address):
         raw_instruction = self._get_raw_instruction(data, address)
@@ -44,10 +60,32 @@ class MIPS16Disassembler:
         except StopIteration:
             return None
 
-    def _decode_impl(self, raw_instruction):
+    def _decode_impl(self, raw_instruction, address):
         result = InstructionInfo()
         result.length = self._address_length()
+
+        destination = self._compute_branch_address(raw_instruction, address)
+
+        if raw_instruction.mnemonic in unconditional_branch_instructions:
+            result.add_branch(BranchType.UnconditionalBranch, destination)
+
+        if raw_instruction.mnemonic in function_return_instructions:
+            result.add_branch(BranchType.FunctionReturn)
+
+        if raw_instruction.mnemonic in branch_instructions:
+            result.add_branch(BranchType.TrueBranch, destination)
+            # Take into account the delay slot when computing the false branch address
+            result.add_branch(
+                BranchType.FalseBranch, address + 2 * self._address_length()
+            )
+
+        if raw_instruction.mnemonic in call_destination_instructions:
+            result.add_branch(BranchType.CallDestination, destination)
+
         return result
+
+    def _compute_branch_address(self, raw_instruction, address):
+        return address
 
     def _text_impl(self, raw_instruction):
         tokens = []
