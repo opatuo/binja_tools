@@ -1,0 +1,36 @@
+#!/usr/bin/poke -L
+!#
+
+load elf;
+
+if (argv'length != 1)
+{
+    print("Usage: text_section_extractor FILE\n");
+    exit(1);
+}
+
+var file_name = argv[0];
+
+try
+{
+    var fd = open(file_name, IOS_M_RDONLY);
+    var elf = Elf64_File @ fd : 0#B;
+
+    for (shdr in elf.shdr where shdr.sh_type != 0x0)
+    {
+        var sname = elf.get_string(shdr.sh_name);
+        if (sname == "text")
+        {
+            save :ios elf'ios :file file_name + sname :from shdr.sh_offset :size shdr.sh_size;
+        }
+        close(fd);
+    }
+}
+catch (Exception e)
+{
+    if (e == E_constraint)
+        printf("error: ‘%s’ is not a valid ELF64 file\n", file_name);
+    else if (e == E_io)
+        printf("error: couldn’t open file ‘%s’\n", file_name);
+    exit(1);
+}
