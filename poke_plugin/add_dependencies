@@ -1,0 +1,6 @@
+#!/bin/bash
+git clone https://github.com/Vector35/binaryninja-api.git subprojects/binaryninja-api
+cd subprojects/binaryninja-api
+git checkout $(cat ../../api_REVISION.txt | awk -F/ '{print $NF}')
+git submodule update --init --recursive
+cd ..
