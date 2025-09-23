@@ -11,7 +11,7 @@ find_path(
     BN_API_PATH
     NAMES binaryninjaapi.h
     # List of paths to search for the clone of the api
-    HINTS subprojects/binaryninjaapi $ENV{BN_API_PATH}
+    HINTS subprojects/binaryninja-api $ENV{BN_API_PATH}
     REQUIRED
 )
 
@@ -20,5 +20,5 @@ add_subdirectory(${BN_API_PATH} api)
 
 set(SOURCES src/poke_plugin.cpp)
 
-add_library(poke_plugin SHARED $(SOURCES))
+add_library(poke_plugin SHARED ${SOURCES})
 target_link_libraries(poke_plugin PUBLIC binaryninjaapi binaryninjaui Qt6::Core Qt6::Gui Qt6::Widgets)

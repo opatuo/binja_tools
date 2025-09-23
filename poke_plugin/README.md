@@ -4,7 +4,7 @@
 
 Debian 13 Trixie:
 ```
-sudo apt install libpoke-dev qt6-base-dev
+sudo apt install libpoke-dev qt6-base-dev libxkb-dev qt5-qmake
 ```
 
 ## Build
