@@ -1,6 +1,8 @@
 #include "binaryninjaapi.h"
 #include "uitypes.h"
 #include "uicontext.h"
+//#include "ui/sidebar.h"
+//#include <QImage>
 
 extern "C" {
     // Tells Binary Ninja which version of the API you compiled against
@@ -9,6 +11,7 @@ extern "C" {
     // Function run on plugin startup, do simple initialization here (ViewTypes, SidebarWidgetTypes, etc)
     BINARYNINJAPLUGIN bool UIPluginInit()
     {
+        //Sidebar::addSidebarWidgetType(new DebuggerWidgetType(QImage(":/debugger/debugger"), "Debugger"));
         return true;
     }
 
