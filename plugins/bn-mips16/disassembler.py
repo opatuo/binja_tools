@@ -21,34 +21,47 @@ call_destination_instructions = {"bal", "jal", "jalr"}
 
 class MIPS16Disassembler:
     def __init__(self):
-        self.disassembler = Cs(CS_ARCH_MIPS, CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN)
-        self.disassembler.detail = True
+        self.disassembler32 = Cs(CS_ARCH_MIPS, CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN)
+        self.disassembler32.detail = True
+
+        self.disassembler16 = Cs(CS_ARCH_MIPS, CS_MODE_MICRO + CS_MODE_BIG_ENDIAN)
+        self.disassembler16.detail = True
+
+        self.disassembler = self.disassembler32
 
         self.micro_mode = False
         self.address_length = 4
 
     def decode(self, data, address):
+        self._handle_mode_switch(address):
         raw_instruction = self._get_raw_instruction(data, address)
         if raw_instruction is None:
             return None
         return self._decode_impl(instruction, address)
 
     def text(self, data, address):
+        self._handle_mode_switch(address):
         raw_instruction = self._get_raw_instruction(data, address)
         if raw_instruction is None:
             return None
         return self._text_impl(raw_instruction)
 
+    def _handle_mode_switch(self, address):
+        if address % 2 == 1:
+            self._toggle_micro_mode_on()
+        else
+            self._toggle_micro_mode_off()
+
     def _address_length(self):
         return self.address_length
 
     def _toggle_micro_mode_on(self):
-        self.disassembler.mode = CS_MODE_MICRO + CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN
+        self.disassembler = self.disassembler16
         self.micro_mode = True
         self.address_length = 2
 
     def _toggle_micro_mode_off(self):
-        self.disassembler.mode = CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN
+        self.disassembler = self.disassembler32
         self.micro_mode = False
         self.address_length = 4
 
