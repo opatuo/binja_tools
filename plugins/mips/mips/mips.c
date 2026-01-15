@@ -2760,8 +2760,14 @@ uint32_t mips_decompose_instruction(
 			instruction->operands[1].immediate = ins.f.ft;
 			instruction->operands[1].reg = ins.f.fr;
 			break;
-		case MIPS_LWC1:
-		case MIPS_SWC1:
+		case MIPS_LWC1: // lwc1 $f24, 7328($sp)
+		case MIPS_SWC1: // swc1 $f24, 7328($sp)
+			instruction->operands[0].operandClass = REG;
+			instruction->operands[1].operandClass = MEM_IMM;
+			instruction->operands[0].reg = ins.i.rt + FPREG_F0;
+			instruction->operands[1].reg = ins.i.rs;
+			instruction->operands[1].immediate = ins.i.immediate;
+            break;
 		case MIPS_LDC1:
 		case MIPS_SDC1:
 			// This special case for the R5900 seems wrong: it's trying to use a FP register for the base register
