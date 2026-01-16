@@ -2575,9 +2575,13 @@ uint32_t mips_decompose_instruction(
 			break;
 		case MIPS_DMFC1:
 		case MIPS_MFC1:
+			INS_2(REG, ins.r.rt, REG, ins.f.fs + FPREG_F0)
+            break;
+		case MIPS_MTC1:
+			INS_2(REG, ins.r.rt + FPREG_F0, REG, ins.f.fs)
+            break;
 		case MIPS_MFHC1:
 		case MIPS_DMTC1:
-		case MIPS_MTC1:
 		case MIPS_MTHC1:
 			INS_2(REG, ins.r.rt, REG, ins.f.fs + FPREG_F0)
 			if (ins.r.function + ins.r.sa != 0)
