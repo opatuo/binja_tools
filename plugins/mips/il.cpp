@@ -1777,11 +1777,10 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			il.AddInstruction(
 				il.Store(4, GetILOperandMemoryAddress(il, op2, addrSize),
 					il.Register(4, op1.reg)));
-		}
+        }
 		else
 		{
-			il.AddInstruction(MoveFromCoprocessor(1, il, 4, LLIL_TEMP(0), op1.immediate, 0, decomposeFlags));
-			il.AddInstruction(WriteILOperand(il, instr, 1, addrSize, il.Register(4, LLIL_TEMP(0))));
+            il.AddInstruction(il.Store(4, GetILOperandMemoryAddress(il, op2, addrSize), ReadILOperand(il, instr, 1, registerSize(op1), 4)));
 		}
 		break;
 	case MIPS_SDC1:

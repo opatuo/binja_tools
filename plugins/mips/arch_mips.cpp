@@ -318,6 +318,7 @@ protected:
 
 		switch (instr.operation)
 		{
+            //TODO: handle MIPS16e here
 		//case MIPS_JALX: //This case jumps to a different processor mode microMIPS32/MIPS32/MIPS16e
 		//	break;
 		//Branch/jump and link immediate
