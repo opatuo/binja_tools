@@ -41,6 +41,7 @@ uint64_t bswap64(uint64_t x)
 		((x >> 56) & 0x00000000000000ffUL);
 }
 
+// BINARY_VIEW
 enum ElfMipsRelocationType : uint32_t
 {
 	R_MIPS_NONE           = 0,
@@ -111,7 +112,7 @@ enum ElfMipsRelocationType : uint32_t
 	R_MIPS_HIVENDOR  =  127
 };
 
-
+//BINARY_VIEW
 static const char* GetRelocationString(ElfMipsRelocationType rel)
 {
 	static map<ElfMipsRelocationType, const char*> relocTable = {
@@ -3626,7 +3627,7 @@ static void InitMipsSettings()
 			})");
 }
 
-
+//BINARY_VIEW
 static Ref<Platform> ElfFlagsRecognize(BinaryView* view, Metadata* metadata)
 {
 	Ref<Metadata> abiMetadata = metadata->Get("EI_OSABI");
