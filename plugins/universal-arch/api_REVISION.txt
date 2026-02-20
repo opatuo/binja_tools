@@ -1,0 +1,1 @@
+/Applications/Binary Ninja.app/Contents/Resources/api_REVISION.txt
