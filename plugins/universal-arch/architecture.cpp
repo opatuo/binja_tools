@@ -25,11 +25,6 @@ public:
 		//uint32_t flag_pseudo_ops = settings->Get<bool>("arch.mips.disassembly.pseudoOps") ? DECOMPOSE_FLAGS_PSEUDO_OP : 0;
 	}
 
-	virtual bool Disassemble(const uint8_t* data, uint64_t addr, size_t maxLen, Instruction& result)
-	{
-		return true;
-	}
-
 	virtual size_t GetAddressSize() const override
 	{
 		return 0U;
